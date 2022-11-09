@@ -58,19 +58,26 @@
         var scene = null;
         var sceneToRender = null;
         var createDefaultEngine = function () { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, disableWebGL2Support: false }); };
+
         const createScene = () => {
             const scene = new BABYLON.Scene(engine);
 
-            /**** Set camera and light *****/
-            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 10, new BABYLON.Vector3(0, 0, 0));
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2.2, Math.PI / 2.2, 15, new BABYLON.Vector3(0, 0, 0));
+            camera.upperBetaLimit = Math.PI / 2.2;
             camera.attachControl(canvas, true);
             const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
+
+            light.intensity = 0.3;
 
             const sound = new BABYLON.Sound("sound", Assets.sound.cannonBlast.path, scene);
             //Leave time for the sound file to load before playing it
             //setInterval(() => sound.play(), 3000);
             //box
+            const ground = buildGround();
 
+            const trees = spriteTrees();
+
+            const sky = buildSky(scene);
 
             const buildings = buildDwellings();
 
@@ -78,8 +85,186 @@
 
             const dude = buildDude(scene);
 
+            const fountain = buildFountain(scene);
+
+            const streetLight = buildStreetLight(scene);
 
             return scene;
+        }
+
+        const buildStreetLight = (scene) => {
+            BABYLON.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/", "lamp.babylon").then(() => {
+                const lampLight = new BABYLON.SpotLight("lampLight", BABYLON.Vector3.Zero(), new BABYLON.Vector3(0, -1, 0), 0.6 * Math.PI, 7, scene);
+                lampLight.diffuse = BABYLON.Color3.Yellow();
+                lampLight.parent = scene.getMeshByName("bulb");
+
+                const lamp = scene.getMeshByName("lamp");
+                lamp.position = new BABYLON.Vector3(0.5, 0, 0);
+                lamp.rotation = BABYLON.Vector3.Zero();
+                lamp.rotation.y = -Math.PI / 4;
+
+
+                lamp1 = lamp.clone("lamp1");
+                lamp1.position.x = -7;
+                lamp1.position.z = 1.4;
+                lamp1.rotation.y = Math.PI / 2;
+
+                lamp2 = lamp1.clone("lamp2");
+                lamp2.position.x = -2.7;
+                lamp2.position.z = 0.3;
+                lamp2.rotation.y = -Math.PI / 2;
+
+                lamp3 = lamp.clone("lamp1");
+                lamp3.position.x = 1.5;
+                lamp3.position.z = -7.5;
+
+            });
+        }
+
+        const buildFountain = (scene) => {
+            const fountainProfile = [
+                new BABYLON.Vector3(0, 0, 0),
+                new BABYLON.Vector3(0.5, 0, 0),
+                new BABYLON.Vector3(0.5, 0.2, 0),
+                new BABYLON.Vector3(0.4, 0.2, 0),
+                new BABYLON.Vector3(0.4, 0.05, 0),
+                new BABYLON.Vector3(0.05, 0.1, 0),
+                new BABYLON.Vector3(0.05, 0.8, 0),
+                new BABYLON.Vector3(0.15, 0.9, 0)
+            ];
+            const fountain = BABYLON.MeshBuilder.CreateLathe("fountain", { shape: fountainProfile, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, scene);
+            //fountain.scaling = new BABYLON.Vector3(0.1, 0.1, 0.1);
+            fountain.position.x = -4;
+            fountain.position.z = -6;
+
+
+            // Create a particle system
+            var particleSystem = new BABYLON.ParticleSystem("particles", 250, scene);
+
+            //Texture of each particle
+            particleSystem.particleTexture = new BABYLON.Texture(Assets.textures.flare_png.path, scene);
+
+            // Where the particles come from
+            particleSystem.emitter = new BABYLON.Vector3(-4, 0.9, -6); // the starting object, the emitter
+            particleSystem.minEmitBox = new BABYLON.Vector3(-0.05, 0, 0); // Starting all from
+            particleSystem.maxEmitBox = new BABYLON.Vector3(0.05, 0, 0); // To...
+
+            // Colors of all particles
+            particleSystem.color1 = new BABYLON.Color4(0.7, 0.8, 1.0, 1.0);
+            particleSystem.color2 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
+            particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
+
+            // Size of each particle (random between...
+            particleSystem.minSize = 0.04;
+            particleSystem.maxSize = 0.20;
+
+            // Life time of each particle (random between...
+            particleSystem.minLifeTime = 2;
+            particleSystem.maxLifeTime = 3.5;
+
+            // Emission rate
+            particleSystem.emitRate = 1500;
+
+            // Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
+            particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+
+            // Set the gravity of all particles
+            particleSystem.gravity = new BABYLON.Vector3(0, -0.3, 0);
+
+            // Direction of each particle after it has been emitted
+            particleSystem.direction1 = new BABYLON.Vector3(-0.1, 0.4, 0.1);
+            particleSystem.direction2 = new BABYLON.Vector3(0.1, 0.4, -0.1);
+
+            // Angular speed, in radians
+            particleSystem.minAngularSpeed = 0;
+            particleSystem.maxAngularSpeed = Math.PI;
+
+            // Speed
+            particleSystem.minEmitPower = 0.5;
+            particleSystem.maxEmitPower = 1.5;
+            particleSystem.updateSpeed = 0.25;
+
+
+
+            //Switch fountain on and off
+            let switched = false;
+            const pointerDown = (mesh) => {
+                if (mesh === fountain) {
+                    switched = !switched;
+                    if (switched) {
+                        // Start the particle system
+                        particleSystem.start();
+                    }
+                    else {
+                        // Stop the particle system
+                        particleSystem.stop();
+                    }
+                }
+
+            }
+
+            scene.onPointerObservable.add((pointerInfo) => {
+                switch (pointerInfo.type) {
+                    case BABYLON.PointerEventTypes.POINTERDOWN:
+                        if (pointerInfo.pickInfo.hit) {
+                            pointerDown(pointerInfo.pickInfo.pickedMesh)
+                        }
+                        break;
+                }
+            });
+
+            // Start the particle system
+            //particleSystem.start();
+
+
+        }
+
+        const spriteTrees = () => {
+            const spriteManagerTrees = new BABYLON.SpriteManager("treesManager", Assets.sprites.palm_png.path, 2000, { width: 512, height: 1024 }, scene);
+
+            //We create trees at random positions
+            for (let i = 0; i < 500; i++) {
+                const tree = new BABYLON.Sprite("tree", spriteManagerTrees);
+                tree.position.x = Math.random() * (-30);
+                tree.position.z = Math.random() * 20 + 8;
+                tree.position.y = 0.5;
+            }
+
+            for (let i = 0; i < 500; i++) {
+                const tree = new BABYLON.Sprite("tree", spriteManagerTrees);
+                tree.position.x = Math.random() * (25) + 7;
+                tree.position.z = Math.random() * -35 + 8;
+                tree.position.y = 0.5;
+            }
+        }
+
+        const buildSky = (scene) => {
+
+            const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 150 }, scene);
+            const skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
+            skyboxMaterial.backFaceCulling = false;
+            skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("https://assets.babylonjs.com/skyboxes/skybox/skybox", scene);
+            skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+            skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+            skybox.material = skyboxMaterial;
+
+        }
+
+        const buildGround = () => {
+            const largeGroundMat = new BABYLON.StandardMaterial("largeGroundMat");
+            largeGroundMat.diffuseTexture = new BABYLON.Texture("https://assets.babylonjs.com/environments/valleygrass.png");
+
+            const largeGround = BABYLON.MeshBuilder.CreateGroundFromHeightMap("largeGround", "https://assets.babylonjs.com/environments/villageheightmap.png", { width: 150, height: 150, subdivisions: 20, minHeight: 0, maxHeight: 10 });
+            largeGround.material = largeGroundMat;
+
+
+            // const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 15, height: 16 });
+
+            // const groundMat = new BABYLON.StandardMaterial("groundMat");
+            // groundMat.diffuseColor = new BABYLON.Color3(0, 0.3, 0);
+            // ground.material = groundMat; //Place the material property of the ground
+
         }
 
         const buildDude = (scene) => {
@@ -135,7 +320,7 @@
         }
 
         const buildDwellings = () => {
-            const ground = buildGround();
+
             const detached_house = buildHouse(1);
             detached_house.rotation.y = -Math.PI / 16;
             detached_house.position.x = -6.8;
@@ -179,21 +364,13 @@
             }
         }
 
-
-        const buildGround = () => {
-            const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 15, height: 16 });
-
-            const groundMat = new BABYLON.StandardMaterial("groundMat");
-            groundMat.diffuseColor = new BABYLON.Color3(0, 0.3, 0);
-            ground.material = groundMat; //Place the material property of the ground
-
-        }
         const buildHouse = (width) => {
             const box = buildBox(width);
             const roof = buildRoof(width);
 
             return BABYLON.Mesh.MergeMeshes([box, roof], true, false, null, false, true);
         }
+
         const buildRoof = (width) => {
             //basic house
             const roof = BABYLON.MeshBuilder.CreateCylinder("roof", { diameter: 1.3, height: 1.2, tessellation: 3 });
@@ -242,7 +419,6 @@
 
             return box;
         }
-
 
         const buildCar = (scene) => {
             const carBody = buildCarBody();
@@ -377,6 +553,7 @@
         }
 
         window.initFunction = async function () {
+
             var asyncEngineCreation = async function () {
                 try {
                     return createDefaultEngine();
@@ -385,11 +562,13 @@
                     return createDefaultEngine();
                 }
             }
+
             window.engine = await asyncEngineCreation();
             if (!engine) throw 'engine should not be null.';
-            startRenderLoop(engine);
+            startRenderLoop(engine, canvas);
             window.scene = createScene();
         };
+        
         initFunction().then(() => {
             sceneToRender = scene
         });
