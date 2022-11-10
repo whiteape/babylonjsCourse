@@ -65,15 +65,17 @@
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2.2, Math.PI / 2.2, 15, new BABYLON.Vector3(0, 0, 0));
             camera.upperBetaLimit = Math.PI / 2.2;
             camera.attachControl(canvas, true);
-            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
-
-            light.intensity = 0.3;
+            //const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
+            const light = new BABYLON.DirectionalLight("dir01", new BABYLON.Vector3(0, -1, 1), scene);
+            light.position = new BABYLON.Vector3(0, 50, -100);
+            //light.intensity = 0.3;
+            // Shadow generator
+            const shadowGenerator = new BABYLON.ShadowGenerator(10240, light);
 
             const sound = new BABYLON.Sound("sound", Assets.sound.cannonBlast.path, scene);
             //Leave time for the sound file to load before playing it
             //setInterval(() => sound.play(), 3000);
             //box
-            const ground = buildGround();
 
             const trees = spriteTrees();
 
@@ -81,18 +83,64 @@
 
             const buildings = buildDwellings();
 
-            const car = buildCar(scene);
+            const car = buildCar(scene,shadowGenerator);
 
-            const dude = buildDude(scene);
+            const dude = buildDude(scene, shadowGenerator);
 
             const fountain = buildFountain(scene);
 
-            const streetLight = buildStreetLight(scene);
+            const streetLight = buildStreetLight(scene, shadowGenerator);
+
+            const lightPanel = buildLightPanel(light);
+
+            //shadowGenerator.addShadowCaster(car, true);
+            shadowGenerator.addShadowCaster(fountain, true);
+            for (let i = 0; i < buildings.length; i++) {
+                shadowGenerator.addShadowCaster(buildings[i], true);
+            }
+
+            const ground = buildGround();
+            ground.receiveShadows = true;
 
             return scene;
         }
 
-        const buildStreetLight = (scene) => {
+        const buildLightPanel = (light) => {
+            const adt = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+            const panel = new BABYLON.GUI.StackPanel();
+            panel.width = "220px";
+            panel.top = "-50px";
+            panel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+            panel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+            adt.addControl(panel);
+
+            const header = new BABYLON.GUI.TextBlock();
+            header.text = "Night to Day";
+            header.height = "30px";
+            header.color = "white";
+            panel.addControl(header);
+
+            const slider = new BABYLON.GUI.Slider();
+            slider.minimum = 0;
+            slider.maximum = 1;
+            slider.borderColor = "black";
+            slider.color = "#AAAAAA";
+            slider.background = "#white";
+            slider.value = 1;
+            slider.height = "20px";
+            slider.width = "200px";
+
+            light.intensity = slider.value;
+            slider.onValueChangedObservable.add((value) => {
+                if (light) {
+                    light.intensity = value;
+
+                }
+            });
+            panel.addControl(slider);
+        }
+
+        const buildStreetLight = (scene, shadowGenerator) => {
             BABYLON.SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/", "lamp.babylon").then(() => {
                 const lampLight = new BABYLON.SpotLight("lampLight", BABYLON.Vector3.Zero(), new BABYLON.Vector3(0, -1, 0), 0.6 * Math.PI, 7, scene);
                 lampLight.diffuse = BABYLON.Color3.Yellow();
@@ -109,10 +157,7 @@
                 lamp1.position.z = 1.7;
                 lamp1.rotation.y = Math.PI / 2;
 
-                lamp4 = lamp.clone("lamp4");
-                lamp4.position.x = 4;
-                lamp4.position.z = -3.7;
-                lamp4.rotation.y = Math.PI;
+
 
                 lamp2 = lamp1.clone("lamp2");
                 lamp2.position.x = -3.5;
@@ -124,7 +169,16 @@
                 lamp3.position.z = -6.3;
                 lamp3.rotation.y = Math.PI / 32;
 
+                lamp4 = lamp.clone("lamp4");
+                lamp4.position.x = 4;
+                lamp4.position.z = -3.7;
+                lamp4.rotation.y = Math.PI;
 
+                shadowGenerator.addShadowCaster(lamp, true);
+                shadowGenerator.addShadowCaster(lamp1, true);
+                shadowGenerator.addShadowCaster(lamp2, true);
+                shadowGenerator.addShadowCaster(lamp3, true);
+                shadowGenerator.addShadowCaster(lamp4, true);
 
 
             });
@@ -224,7 +278,7 @@
 
             // Start the particle system
             //particleSystem.start();
-
+            return fountain;
 
         }
 
@@ -268,15 +322,18 @@
             largeGround.material = largeGroundMat;
             //调节灯数量，默认3个
             largeGround.material.maxSimultaneousLights = 10;
-            // const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 15, height: 16 });
 
-            // const groundMat = new BABYLON.StandardMaterial("groundMat");
-            // groundMat.diffuseColor = new BABYLON.Color3(0, 0.3, 0);
-            // ground.material = groundMat; //Place the material property of the ground
+            //const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 15, height: 16 });
+
+            //const groundMat = new BABYLON.StandardMaterial("groundMat");
+            //groundMat.diffuseColor = new BABYLON.Color3(0, 0.3, 0);
+            //ground.material = groundMat; //Place the material property of the ground
+            //ground.receiveShadows = true;
+            return largeGround;
 
         }
 
-        const buildDude = (scene) => {
+        const buildDude = (scene, shadowGenerator) => {
 
             const walk = function (turn, dist) {
                 this.turn = turn;
@@ -292,12 +349,12 @@
             track.push(new walk(-72, 33.2));
             track.push(new walk(42, 37.5));
             track.push(new walk(-98, 45.2));
-            track.push(new walk(0, 47))
+            track.push(new walk(0, 47));
             // Dude
             BABYLON.SceneLoader.ImportMeshAsync("him", Assets.meshes.dude.rootUrl, Assets.meshes.dude.filename, scene).then((result) => {
-                var dude = result.meshes[0];
+                const dude = result.meshes[0];
                 dude.scaling = new BABYLON.Vector3(0.008, 0.008, 0.008);
-
+                shadowGenerator.addShadowCaster(dude, true);
                 dude.position = new BABYLON.Vector3(-6, 0, 0);
                 dude.rotate(BABYLON.Axis.Y, BABYLON.Tools.ToRadians(-95), BABYLON.Space.LOCAL);
                 const startRotation = dude.rotationQuaternion.clone();
@@ -324,8 +381,12 @@
                         }
                     }
 
-                })
+                });
+
+                return dude;
             });
+
+
         }
 
         const buildDwellings = () => {
@@ -371,6 +432,7 @@
                 houses[i].position.x = places[i][2];
                 houses[i].position.z = places[i][3];
             }
+            return houses;
         }
 
         const buildHouse = (width) => {
@@ -429,43 +491,38 @@
             return box;
         }
 
-        const buildCar = (scene) => {
+        const buildCar = (scene,shadowGenerator) => {
             const carBody = buildCarBody();
             const carWheels = buildWheels(carBody, scene);
             carBody.rotation = new BABYLON.Vector3(-Math.PI / 2, Math.PI, -Math.PI / 2);
             carBody.position.y = 0.16;
             carBody.position.x = 3;
             carBody.position.z = 8;
-
+            shadowGenerator.addShadowCaster(carBody, true);
             const animCar = new BABYLON.Animation("carAnimation", "position.z", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
 
             const carKeys = [];
-
             carKeys.push({
                 frame: 0,
                 value: 8
             });
-
             carKeys.push({
                 frame: 150,
                 value: -7
             });
-
             carKeys.push({
                 frame: 200,
                 value: -7
             });
-
             animCar.setKeys(carKeys);
-
             carBody.animations = [];
             carBody.animations.push(animCar);
-
             scene.beginAnimation(carBody, 0, 200, true);
+
             return carBody;
         }
 
-        const buildCarBody = () => {
+        const buildCarBody = (shadowGenerator) => {
             const outline = [
                 new BABYLON.Vector3(-0.3, 0, -0.1),
                 new BABYLON.Vector3(0.2, 0, -0.1),
@@ -487,6 +544,7 @@
             carMat.diffuseTexture = new BABYLON.Texture("https://assets.babylonjs.com/environments/car.png");
             const carBody = BABYLON.MeshBuilder.ExtrudePolygon("carBody", { shape: outline, depth: 0.2, faceUV: faceUV, wrap: true });
             carBody.material = carMat;
+
             return carBody;
         }
 
