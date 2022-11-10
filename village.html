@@ -99,24 +99,33 @@
                 lampLight.parent = scene.getMeshByName("bulb");
 
                 const lamp = scene.getMeshByName("lamp");
-                lamp.position = new BABYLON.Vector3(0.5, 0, 0);
+                lamp.position = new BABYLON.Vector3(-0.5, 0, 0);
                 lamp.rotation = BABYLON.Vector3.Zero();
                 lamp.rotation.y = -Math.PI / 4;
 
 
                 lamp1 = lamp.clone("lamp1");
-                lamp1.position.x = -7;
-                lamp1.position.z = 1.4;
+                lamp1.position.x = -7.5;
+                lamp1.position.z = 1.7;
                 lamp1.rotation.y = Math.PI / 2;
 
+                lamp4 = lamp.clone("lamp4");
+                lamp4.position.x = 4;
+                lamp4.position.z = -3.7;
+                lamp4.rotation.y = Math.PI;
+
                 lamp2 = lamp1.clone("lamp2");
-                lamp2.position.x = -2.7;
-                lamp2.position.z = 0.3;
+                lamp2.position.x = -3.5;
+                lamp2.position.z = -0.1;
                 lamp2.rotation.y = -Math.PI / 2;
 
-                lamp3 = lamp.clone("lamp1");
-                lamp3.position.x = 1.5;
-                lamp3.position.z = -7.5;
+                lamp3 = lamp.clone("lamp3");
+                lamp3.position.x = 1.2;
+                lamp3.position.z = -6.3;
+                lamp3.rotation.y = Math.PI / 32;
+
+
+
 
             });
         }
@@ -257,8 +266,8 @@
 
             const largeGround = BABYLON.MeshBuilder.CreateGroundFromHeightMap("largeGround", "https://assets.babylonjs.com/environments/villageheightmap.png", { width: 150, height: 150, subdivisions: 20, minHeight: 0, maxHeight: 10 });
             largeGround.material = largeGroundMat;
-
-
+            //调节灯数量，默认3个
+            largeGround.material.maxSimultaneousLights = 10;
             // const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 15, height: 16 });
 
             // const groundMat = new BABYLON.StandardMaterial("groundMat");
@@ -568,7 +577,7 @@
             startRenderLoop(engine, canvas);
             window.scene = createScene();
         };
-        
+
         initFunction().then(() => {
             sceneToRender = scene
         });
